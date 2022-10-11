@@ -60,12 +60,7 @@ class MainFragment : Fragment() {
             permissionListener()
             pLauncher.launch(Manifest.permission.ACCESS_FINE_LOCATION)
         }
-
     }
-
-
-
-
 
     companion object {
         fun newInstance() = MainFragment()
