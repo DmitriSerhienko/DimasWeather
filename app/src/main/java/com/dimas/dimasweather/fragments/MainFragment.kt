@@ -12,12 +12,13 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import com.android.volley.Request
-import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import com.dimas.dimasweather.adapters.VpAdapter
+import com.dimas.dimasweather.adapters.WeatherModel
 import com.dimas.dimasweather.databinding.FragmentMainBinding
 import com.google.android.material.tabs.TabLayoutMediator
+import org.json.JSONObject
 
 const val API_KEY = "fe47f82eaa334711be0180439221010"
 
@@ -46,7 +47,7 @@ class MainFragment : Fragment() {
         checkPermission()
         init()
         requestWeatherData("London")
-        Log.e("MyLog", "Error: 1231")
+
     }
 
     private fun init(){
@@ -84,7 +85,7 @@ class MainFragment : Fragment() {
             Request.Method.GET,
             url,
             {
-                result -> Log.d("MyLog", "Result: $result")
+                result -> parseWeatherData(result)
             },
             {
                 error -> Log.d("MyLog", "Error: $error")
@@ -93,6 +94,20 @@ class MainFragment : Fragment() {
         queue.add(request)
     }
 
+    private fun parseWeatherData(result: String){
+        val mainObject = JSONObject(result)
+        val item = WeatherModel(
+            mainObject.getJSONObject("location").getString("name"),
+            mainObject.getJSONObject("current").getString("last_updated"),
+            mainObject.getJSONObject("current").getJSONObject("condition").getString("text"),
+            mainObject.getJSONObject("current").getString("temp_c"),
+            "", "",
+            mainObject.getJSONObject("current").getJSONObject("condition").getString("icon"),
+            ""
+        )
+        Log.d("MyLog", "Error: $14")
+
+    }
     companion object {
         fun newInstance() = MainFragment()
     }
