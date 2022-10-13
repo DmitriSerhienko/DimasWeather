@@ -51,7 +51,7 @@ class MainFragment : Fragment() {
         checkPermission()
         init()
         updateCurrentCard()
-        requestWeatherData("Vienna")
+        requestWeatherData("Kiev")
     }
 
     private fun init(){
