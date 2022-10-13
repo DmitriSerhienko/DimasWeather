@@ -11,13 +11,16 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.activityViewModels
 import com.android.volley.Request
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
+import com.dimas.dimasweather.MainViewModel
 import com.dimas.dimasweather.adapters.VpAdapter
 import com.dimas.dimasweather.adapters.WeatherModel
 import com.dimas.dimasweather.databinding.FragmentMainBinding
 import com.google.android.material.tabs.TabLayoutMediator
+import com.squareup.picasso.Picasso
 import org.json.JSONObject
 
 const val API_KEY = "fe47f82eaa334711be0180439221010"
@@ -33,6 +36,7 @@ class MainFragment : Fragment() {
     )
     private lateinit var binding: FragmentMainBinding
     private lateinit var pLauncher: ActivityResultLauncher<String>
+    private val model: MainViewModel by activityViewModels()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -46,8 +50,8 @@ class MainFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         checkPermission()
         init()
-        requestWeatherData("London")
-
+        updateCurrentCard()
+        requestWeatherData("Vienna")
     }
 
     private fun init(){
@@ -59,6 +63,19 @@ class MainFragment : Fragment() {
 
     }
 
+    private fun updateCurrentCard()= with(binding){
+        model.liveDataCurrent.observe(viewLifecycleOwner){
+            val maxMinTemp = "${it.maxTemp}C/${it.minTemp}C"
+            tvDate.text = it.time
+            tvCity.text = it.city
+            tvCurrentTemp.text = it.currentTemp
+            tvCondition.text = it.condition
+            tvMaxMin.text = maxMinTemp
+            Picasso.get().load("https:"+it.imageUrl).into(imWeather)
+
+        }
+
+    }
     private fun permissionListener(){
         pLauncher = registerForActivityResult(ActivityResultContracts.RequestPermission()){
             Toast.makeText(activity, "Permission: $it", Toast.LENGTH_LONG).show()
@@ -133,6 +150,7 @@ class MainFragment : Fragment() {
             mainObject.getJSONObject("current").getJSONObject("condition").getString("icon"),
             weatherItem.hours
         )
+        model.liveDataCurrent.value = item
 
     }
 
