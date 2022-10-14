@@ -1,7 +1,12 @@
 package com.dimas.dimasweather.fragments
 
 import android.Manifest
+import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.location.LocationManager
 import android.os.Bundle
+import android.provider.Settings
 import android.util.Log
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -11,14 +16,21 @@ import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
 import androidx.fragment.app.activityViewModels
 import com.android.volley.Request
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
+import com.dimas.dimasweather.DialogManager
 import com.dimas.dimasweather.MainViewModel
 import com.dimas.dimasweather.adapters.VpAdapter
 import com.dimas.dimasweather.adapters.WeatherModel
 import com.dimas.dimasweather.databinding.FragmentMainBinding
+import com.google.android.gms.location.FusedLocationProviderClient
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.Priority
+import com.google.android.gms.tasks.CancellationTokenSource
 import com.google.android.material.tabs.TabLayoutMediator
 import com.squareup.picasso.Picasso
 import org.json.JSONObject
@@ -34,6 +46,7 @@ class MainFragment : Fragment() {
         "Hours",
         "Days"
     )
+    private lateinit var fLocationClient: FusedLocationProviderClient
     private lateinit var binding: FragmentMainBinding
     private lateinit var pLauncher: ActivityResultLauncher<String>
     private val model: MainViewModel by activityViewModels()
@@ -51,16 +64,63 @@ class MainFragment : Fragment() {
         checkPermission()
         init()
         updateCurrentCard()
-        requestWeatherData("Kiev")
     }
 
-    private fun init(){
+    override fun onResume() {
+        super.onResume()
+        checkLocation()
+    }
+
+    private fun init() = with(binding){
+        fLocationClient = LocationServices.getFusedLocationProviderClient(requireContext())
         val adapter = VpAdapter(activity as AppCompatActivity, fList )
-        binding.vp.adapter = adapter
-        TabLayoutMediator(binding.tabLayout,binding.vp){
+        vp.adapter = adapter
+        TabLayoutMediator(tabLayout,binding.vp){
             tab, pos -> tab.text = tList[pos]
         }.attach()
+        ibSync.setOnClickListener {
+            tabLayout.selectTab(tabLayout.getTabAt(0))
+            checkLocation()
+        }
+        ibSearch.setOnClickListener {
+            DialogManager.searchByNameDialog(requireContext(),object: DialogManager.Listener{
+                override fun onclick(name: String?) {
+                    name?.let { it1 -> requestWeatherData(it1) }
+                }
 
+            })
+        }
+    }
+    private fun checkLocation(){
+        if(isLocationEnabled()){
+            getLocation()
+        } else {
+            DialogManager.locationSettingsDialog(requireContext(),object: DialogManager.Listener{
+                override fun onclick(name: String?) {
+                    startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS))
+                }
+            })
+        }
+    }
+
+    private fun isLocationEnabled(): Boolean{
+        val lm = activity?.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+        return lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
+    }
+
+    private fun getLocation(){
+        val ct = CancellationTokenSource()
+        if (ActivityCompat.checkSelfPermission(requireContext(),
+                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(
+                requireContext(),
+                Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+        fLocationClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, ct.token )
+            .addOnCompleteListener {
+                requestWeatherData("${it.result.latitude}, ${it.result.longitude}")
+            }
     }
 
     private fun updateCurrentCard()= with(binding){
@@ -68,7 +128,7 @@ class MainFragment : Fragment() {
             val maxMinTemp = "${it.maxTemp}°C / ${it.minTemp}°C"
             tvDate.text = it.time
             tvCity.text = it.city
-            tvCurrentTemp.text = it.currentTemp.ifEmpty { maxMinTemp }
+            tvCurrentTemp.text = it.currentTemp.ifEmpty { maxMinTemp }.toFloat().toInt().toString()
             tvCondition.text = it.condition
             tvMaxMin.text = if(it.currentTemp.isEmpty()) "" else maxMinTemp
             Picasso.get().load("https:"+it.imageUrl).into(imWeather)
